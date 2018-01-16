@@ -26,7 +26,7 @@ fi
 # Install Ubuntu packages
 echo -e "\n--- Installing Ubuntu packages ---\n"
 apt-get -qq update
-apt-get -y install python-pip python-dev python-mysqldb rabbitmq-server >> $LOG 2>&1
+apt-get -y install python-pip python-dev python-mysqldb rabbitmq-server gradle default-jdk >> $LOG 2>&1
 
 # Install Python packages
 echo -e "\n--- Installing Python packages ---\n"
@@ -43,7 +43,6 @@ apt-get -y install mysql-server >> $LOG 2>&1
 echo -e "\n--- Setting up the MySQL user and database ---\n"
 mysql -uroot -p$DBPASSWD -e "CREATE DATABASE IF NOT EXISTS $DBNAME" >> /vagrant/vm_build.log 2>&1
 mysql -uroot -p$DBPASSWD -e "GRANT ALL PRIVILEGES ON $DBNAME.* TO '$DBUSER'@'localhost' IDENTIFIED BY '$DBPASSWD'" >> $LOG 2>&1
-mysql -uroot -p$DBPASSWD -e "CREATE DATABASE IF NOT EXISTS test_$DBNAME" >> /vagrant/vm_build.log 2>&1
 mysql -uroot -p$DBPASSWD -e "GRANT ALL PRIVILEGES ON test_$DBNAME.* TO '$DBUSER'@'localhost' IDENTIFIED BY '$DBPASSWD'" >> $LOG 2>&1
 
 # Update Django settings
