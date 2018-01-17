@@ -13,7 +13,8 @@
             "^[a-z]" : {
               "type" : "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
