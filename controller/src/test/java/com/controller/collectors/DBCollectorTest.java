@@ -6,6 +6,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 
 /**
  * Test for DBCollectorTest.
@@ -13,14 +14,14 @@ import java.io.IOException;
  */
 public class DBCollectorTest {
     @Test
-    public void outputTest() throws IOException, ProcessingException {
+    public void mysqlOutputTest() throws IOException, ProcessingException {
         File schemaFile = new File("/vagrant/ottertune/controller/src/main/java/com/controller/schema.json");
         File jsonFile = new File("/vagrant/ottertune/controller/output/mysql/knobs.json");
 
-        if (ValidationUtils.isJsonValid(schemaFile, jsonFile)){
-            System.out.println("Valid!");
-        }else{
-            System.out.println("NOT valid!");
+        if (!ValidationUtils.isJsonValid(schemaFile, jsonFile)){
+            throw new InvalidObjectException("invalid json output file");
         }
-    }
+    
+
+
 }
