@@ -18,7 +18,27 @@
       }
     },
     "local" : {
-      
+      "type": ["object", "null"],
+      "patternProperties" : {
+        "^[a-z]" : {
+          "type" : "object",
+          "patternProperties" : {
+            "^[a-z]" : {
+              "type" : "object",
+              "patternProperties" : {
+                "^[a-z]" : {
+                  "type" : "object",
+                  "patternProperties" : {
+                    "^[a-z]" : {
+                      "type" : "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "required": ["global", "local"]
