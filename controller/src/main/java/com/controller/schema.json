@@ -18,6 +18,22 @@
       }
     },
     "local" : {
+      "type": "object",
+      "patternProperties" : {
+        "^$" : {
+          "type": "object",
+          "patternProperties" : {
+            "^$" : {
+              "type": "object",
+              "patternProperties" : {
+                "^$" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "required": ["global", "local"]
