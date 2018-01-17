@@ -7,10 +7,10 @@
     "global" : {
       "type": ["object", "null"],
       "patternProperties" : {
-        "^[a-z]|[A-Z]|_" : {
+        "^[A-Za-z0-9 -_]" : {
           "type" : "object",
           "patternProperties" : {
-            "^[a-z]|[A-Z]|_" : {
+            "^[A-Za-z0-9 -_]" : {
               "type" : "string"
             }
           },
@@ -22,16 +22,16 @@
     "local" : {
       "type": ["object", "null"],
       "patternProperties" : {
-        "^[a-z]|[A-Z]|_" : {
+        "^[A-Za-z0-9 -_]" : {
           "type" : "object",
           "patternProperties" : {
-            "^[a-z]|[A-Z]|_" : {
+            "^[A-Za-z0-9 -_]" : {
               "type" : "object",
               "patternProperties" : {
-                "^[a-z]|[A-Z]|_" : {
+                "^[A-Za-z0-9 -_]" : {
                   "type" : "object",
                   "patternProperties" : {
-                    "^[a-z]|[A-Z]|_" : {
+                    "^[A-Za-z0-9 -_]" : {
                       "type" : "string"
                     }
                   }
