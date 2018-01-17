@@ -50,11 +50,12 @@ public class DBCollectorTest {
     }
 
     @Test
-    public void mockJsonOutput1Test() throws IOException, ProcessingException {
+    public void mockJsonOutputTest() throws IOException, ProcessingException {
         File schemaFile = new File("/vagrant/ottertune/controller/src/main/java/com/controller/schema.json");
-        File mockJsonFile = new File("/vagrant/ottertune/controller/src/test/java/com/controller/collectors/mockJsonOutput2.json");
 
-        if(ValidationUtils.isJsonValid(schemaFile, mockJsonFile)) {
+        File mockJsonFile2 = new File("/vagrant/ottertune/controller/src/test/java/com/controller/collectors/mockJsonOutput2.json");
+
+        if(ValidationUtils.isJsonValid(schemaFile, mockJsonFile2)) {
             throw new InvalidObjectException("the mock json output file should be invalid!");
         }
     }
