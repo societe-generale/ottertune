@@ -55,9 +55,11 @@ public class DBCollectorTest {
         File mockJsonFile1 = new File("/vagrant/ottertune/controller/src/test/java/com/controller/collectors/mockJsonOutput1.json");
         File mockJsonFile2 = new File("/vagrant/ottertune/controller/src/test/java/com/controller/collectors/mockJsonOutput2.json");
 
+        // wrong number of levels for "global"
         if(ValidationUtils.isJsonValid(schemaFile, mockJsonFile1)) {
             throw new InvalidObjectException("the mock json output file should be invalid!");
         }
+        // lacking "local"
         if(ValidationUtils.isJsonValid(schemaFile, mockJsonFile2)) {
             throw new InvalidObjectException("the mock json output file should be invalid!");
         }
