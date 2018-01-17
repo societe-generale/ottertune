@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 
 /**
- * Test for DBCollectorTest.
+ * Test for DBCollector. Test the output knob/metrics json files and the output summary json file.
  * @author Shuli
  */
 public class DBCollectorTest {
@@ -62,6 +62,20 @@ public class DBCollectorTest {
         // lacking "local"
         if(ValidationUtils.isJsonValid(schemaFile, mockJsonFile2)) {
             throw new InvalidObjectException("the mock json output file should be invalid!");
+        }
+    }
+
+    @Test
+    public void outputSummaryJsonTest() throws IOException, ProcessingException {
+        File schemaFile = new File("/vagrant/ottertune/controller/src/main/java/com/controller/summary_schema.json");
+        File mysqlSummary = new File("/vagrant/ottertune/controller/output/mysql/summary.json");
+        File postgresSummary = new File("/vagrant/ottertune/controller/output/postgres/summary.json");
+
+        if(!ValidationUtils.isJsonValid(schemaFile, mysqlSummary)) {
+            throw new InvalidObjectException("mysql json output summary file is invalid!");
+        }
+        if(!ValidationUtils.isJsonValid(schemaFile, postgresSummary)) {
+            throw new InvalidObjectException("postgres json output summary file is invalid!");
         }
     }
 
