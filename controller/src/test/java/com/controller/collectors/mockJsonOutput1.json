@@ -1,0 +1,16 @@
+{
+  "global" : {
+    "global1" : {
+      "auto_generate_certs": "ON"
+    },
+    "global2" : {
+      "auto_generate_certs": "ON",
+      "avoid_temporal_upgrade": "OFF"
+    }
+  },
+  "local" : {
+    "local_var" : {
+      "table_name" : "this_table"
+    }
+  }
+}
