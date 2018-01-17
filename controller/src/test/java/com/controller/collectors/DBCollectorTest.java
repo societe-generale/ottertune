@@ -14,8 +14,8 @@ import java.io.IOException;
 public class DBCollectorTest {
     @Test
     public void outputTest() throws IOException, ProcessingException {
-        File schemaFile = new File("/src/main/java/com/controller/schema.json");
-        File jsonFile = new File("/output/mysql/knobs.json");
+        File schemaFile = new File("/vagrant/ottertune/controller/src/main/java/com/controller/schema.json");
+        File jsonFile = new File("/vagrant/ottertune/controller/output/mysql/knobs.json");
 
         if (ValidationUtils.isJsonValid(schemaFile, jsonFile)){
             System.out.println("Valid!");

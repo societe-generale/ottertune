@@ -30,15 +30,16 @@ dependencies {
     compile group: 'com.github.fge', name: 'json-schema-core', version: '1.2.5'
 
     // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-annotations
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.9.2'
+//    compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.2.4'
     // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-core
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.7.3'
+//    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.2.4'
     // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.7.3'
+//    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.2.4'
 
 //    compile group: "com.github.java-json-tools", name: "json-schema-validator", version: "2.2.8"
     // https://mvnrepository.com/artifact/org.everit.json/org.everit.json.schema
-//    compile group: 'org.everit.json', name: 'org.everit.json.schema', version: '1.5.1'
+    compile group: 'org.everit.json', name: 'org.everit.json.schema', version: '1.6.1'
+    compile group: 'com.doctusoft', name: 'json-schema-java7', version: '1.4.1'
 
     compile(group: "com.github.java-json-tools", name: "json-schema-validator", version: "2.2.8");
 

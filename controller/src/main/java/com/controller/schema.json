@@ -4,8 +4,16 @@
   "description": "Collected metrics or knobs info",
   "type": "object",
   "properties": {
-    "global" : {},
-    "local" : {}
+    "global" : {
+      "type": "object",
+      "patternProperties" : {
+        "^$" : {
+          "type": "object"
+        }
+      }
+    },
+    "local" : {
+    }
   },
   "required": ["global", "local"]
 }
