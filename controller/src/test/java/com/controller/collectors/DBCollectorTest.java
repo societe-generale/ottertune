@@ -22,6 +22,6 @@ public class DBCollectorTest {
             throw new InvalidObjectException("invalid json output file");
         }
     }
-        
+
 
 }
