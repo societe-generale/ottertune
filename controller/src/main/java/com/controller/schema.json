@@ -21,7 +21,15 @@
       "type": ["object", "null"],
       "patternProperties" : {
         "^$" : {
-          "type" : "object"
+          "type" : "object",
+          "patternProperties" : {
+            "^$" : {
+              "type" : "object",
+              "^$" : {
+                "type" : "string"
+              }
+            }
+          }
         }
       }
     }
