@@ -14,10 +14,10 @@
               "type" : "string"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": "false"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": "false"
     },
     "local" : {
       "type": ["object", "null"],
@@ -30,13 +30,10 @@
               "patternProperties" : {
                 "^[a-z]" : {
                   "type" : "string"
-                },
-                "additionalProperties": false
-              },
-              "additionalProperties": false
+                }
+              }
             }
-          },
-          "additionalProperties": false
+          }
         }
       }
     }
