@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "global" : {
-      "type": "object",
+      "type": ["object", "null"]
       "patternProperties" : {
         "^$" : {
           "type" : "object",
