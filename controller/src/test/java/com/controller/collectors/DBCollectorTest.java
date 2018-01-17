@@ -18,10 +18,10 @@ public class DBCollectorTest {
         File schemaFile = new File("/vagrant/ottertune/controller/src/main/java/com/controller/schema.json");
         File jsonFile = new File("/vagrant/ottertune/controller/output/mysql/knobs.json");
 
-        if (!ValidationUtils.isJsonValid(schemaFile, jsonFile)){
+        if (!ValidationUtils.isJsonValid(schemaFile, jsonFile)) {
             throw new InvalidObjectException("invalid json output file");
         }
-    
-
+    }
+        
 
 }
