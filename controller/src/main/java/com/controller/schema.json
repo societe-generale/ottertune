@@ -8,7 +8,12 @@
       "type": "object",
       "patternProperties" : {
         "^$" : {
-          "type": "object"
+          "type" : "object",
+          "patternProperties" : {
+            "^$" : {
+              "type" : "string"
+            }
+          }
         }
       }
     },
