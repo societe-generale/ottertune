@@ -18,6 +18,12 @@
       }
     },
     "local" : {
+      "type": ["object", "null"],
+      "patternProperties" : {
+        "^$" : {
+          "type" : "object"
+        }
+      }
     }
   },
   "required": ["global", "local"]
