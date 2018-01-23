@@ -18,7 +18,7 @@ import java.util.HashMap;
  * @author Shuli
  */
 public class Main {
-    private static final int DEFAULT_TIME = 5;  //default observation time: 5 s
+    private static final int DEFAULT_TIME = 300;  //default observation time: 300 s
     private static final int TO_MILLISECONDS = 1000;
     public static void main(String[] args) {
         // Parse command line argument
@@ -26,7 +26,7 @@ public class Main {
             throw new MalformedParametersException("Command line argument is malformed");
         }
         int time = DEFAULT_TIME; // set time to default
-        String configFileName = "input_config.json"; //default config file name
+        String configFileName = null;
         for(int i = 0; i < args.length; i += 2){
             String flag = args[i];
             String val = args[++i];
@@ -44,6 +44,10 @@ public class Main {
                 default:
                     throw new MalformedParametersException("invalid flag");
             }
+        }
+
+        if(configFileName == null) {
+            throw new MalformedParametersException("should have a config file!");
         }
 
         // Parse input config file

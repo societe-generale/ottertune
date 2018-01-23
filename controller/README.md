@@ -7,7 +7,7 @@ To run the controller, you need to provide a configuration file and provide comm
    The default configuration is `input_config.json` in the root directory.
  * Command line arguments:
    * time (flag : `-t`) </br>
-     The duration of the experiment in `seconds`. The default time is set to 5 seconds.
+     The duration of the experiment in `seconds`. The default time is set to 300 seconds.
    * configuration file path (flag : `-f`) </br>
-     The path of the input configuration file. The default file is `input_config.json` in the root directory.
+     The path of the input configuration file. All config files are under the directory `config`.
  
