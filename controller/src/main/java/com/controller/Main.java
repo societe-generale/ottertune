@@ -53,31 +53,25 @@ public class Main {
 
         // Parse input config file
         HashMap<String, String> input = ConfigFileParser.getInputFromConfigFile(configFilePath);
-        // db type
-        String dbtype = input.get("database_type");
-        System.out.println(dbtype);
-        DBCollector collector = null;
-        // parameters for creating a collector.
-        String username = input.get("username");
-        String password = input.get("password");
-        String dbURL = input.get("database_url");
-        // uploader
-        String uploadCode = input.get("upload_code");
-        String uploadURL = input.get("upload_url");
-        // workload
-        String workloadName = input.get("workload_name");
+        ControllerConfiguration controllerConfiguration = new ControllerConfiguration(DatabaseType.get(input.get("database_type")),
+                input.get("username"), input.get("password"), input.get("database_url"), input.get("upload_code"), input.get("upload_url"),
+                input.get("workload_name"));
 
-        switch (dbtype) {
-            case "postgres":
-                collector = new PostgresCollector(dbURL, username, password);
+        DBCollector collector = null;
+        switch (controllerConfiguration.getDbtype()) {
+            case POSTGRES:
+                collector = new PostgresCollector(controllerConfiguration.getDatabaseUrl(), controllerConfiguration.getUsername(), controllerConfiguration.getPassword());
                 break;
-            case "mysql":
-                collector = new MySQLCollector(dbURL, username, password);
+            case MYSQL:
+                collector = new MySQLCollector(controllerConfiguration.getDatabaseUrl(), controllerConfiguration.getUsername(), controllerConfiguration.getPassword());
                 break;
             default:
                 throw new MalformedParametersException("invalid database type");
         }
-        String outputDir = dbtype;
+        String outputDir = input.get("database_type");
+        String dbtype = input.get("database_type");
+
+        new File(outputDirName).mkdir();
         new File(outputDirName + "/" + outputDir).mkdir();
 
         try {
@@ -107,7 +101,7 @@ public class Main {
             summary.put("end_time", System.currentTimeMillis());
 
             // record workload_name
-            summary.put("workload_name", workloadName);
+            summary.put("workload_name", controllerConfiguration.getWorkloadName());
 
             // write summary JSONObject into a JSON file
             PrintWriter summaryout = new PrintWriter(outputDirName + "/" + outputDir + "/summary.json","UTF-8");
