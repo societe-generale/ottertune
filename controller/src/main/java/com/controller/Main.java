@@ -4,6 +4,7 @@ import com.controller.collectors.DBCollector;
 import com.controller.collectors.MySQLCollector;
 import com.controller.collectors.PostgresCollector;
 import com.controller.util.JSONUtil;
+import org.apache.commons.cli.*;
 import org.json.simple.JSONObject;
 
 import java.io.File;
@@ -21,37 +22,37 @@ public class Main {
     private static final int DEFAULT_TIME = 300;  //default observation time: 300 s
     private static final int TO_MILLISECONDS = 1000;
     public static void main(String[] args) {
-        // Parse command line argument
-        if(args.length % 2 != 0) {
-            throw new MalformedParametersException("Command line argument is malformed");
-        }
         int time = DEFAULT_TIME; // set time to default
-        String configFileName = null;
-        for(int i = 0; i < args.length; i += 2){
-            String flag = args[i];
-            String val = args[++i];
-            switch (flag) {
-                case "-t" :
-                    time = Integer.valueOf(val);
-                    if(time < 0) {
-                        System.out.println("Invalid time would be ignored");
-                        time = DEFAULT_TIME;
-                    }
-                    break;
-                case "-f" :
-                    configFileName = val;
-                    break;
-                default:
-                    throw new MalformedParametersException("invalid flag");
+        String outputDirName = "output"; // default output directory
+        CommandLineParser parser = new PosixParser();
+        Options options = new Options();
+        options.addOption("t", "time", true, "experiment time");
+        options.addOption("c", "config", true, "config file path");
+        options.addOption("o", "output", true, "output directory name");
+        String configFilePath = null;
+        try {
+            CommandLine argsLine = parser.parse(options, args);
+            // parse time
+            if(argsLine.hasOption("t")) {
+                time = Integer.parseInt(argsLine.getOptionValue("t"));
             }
-        }
+            if(argsLine.hasOption("o")) {
+                outputDirName = argsLine.getOptionValue("o");
+            }
 
-        if(configFileName == null) {
-            throw new MalformedParametersException("should have a config file!");
+            // parse config file
+            if(!argsLine.hasOption("c")) {
+                throw new MalformedParametersException("lack config file");
+            }
+            else {
+                configFilePath = argsLine.getOptionValue("c");
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
         }
 
         // Parse input config file
-        HashMap<String, String> input = ConfigFileParser.getInputFromConfigFile(configFileName);
+        HashMap<String, String> input = ConfigFileParser.getInputFromConfigFile(configFilePath);
         // db type
         String dbtype = input.get("database_type");
         System.out.println(dbtype);
@@ -77,7 +78,7 @@ public class Main {
                 throw new MalformedParametersException("invalid database type");
         }
         String outputDir = dbtype;
-        new File("output/" + outputDir).mkdir();
+        new File(outputDirName + "/" + outputDir).mkdir();
 
         try {
             // summary json obj
@@ -87,11 +88,11 @@ public class Main {
             summary.put("database_version", collector.collectVersion());
 
             // first collection (before queries)
-            PrintWriter metricsWriter = new PrintWriter("output/" + outputDir+ "/metrics_before.json", "UTF-8");
+            PrintWriter metricsWriter = new PrintWriter(outputDirName + "/" + outputDir+ "/metrics_before.json", "UTF-8");
             metricsWriter.println(collector.collectMetrics());
             metricsWriter.flush();
             metricsWriter.close();
-            PrintWriter knobsWriter = new PrintWriter("output/"+ outputDir + "/knobs.json", "UTF-8");
+            PrintWriter knobsWriter = new PrintWriter(outputDirName + "/"+ outputDir + "/knobs.json", "UTF-8");
             knobsWriter.println(collector.collectParameters());
             knobsWriter.flush();
             knobsWriter.close();
@@ -109,12 +110,12 @@ public class Main {
             summary.put("workload_name", workloadName);
 
             // write summary JSONObject into a JSON file
-            PrintWriter summaryout = new PrintWriter("output/" + outputDir + "/summary.json","UTF-8");
+            PrintWriter summaryout = new PrintWriter(outputDirName + "/" + outputDir + "/summary.json","UTF-8");
             summaryout.println(JSONUtil.format(summary.toString()));
             summaryout.flush();
 
             // second collection (after queries)
-            PrintWriter metricsWriterFinal = new PrintWriter("output/" + outputDir + "/metrics_after.json", "UTF-8");
+            PrintWriter metricsWriterFinal = new PrintWriter(outputDirName + "/" + outputDir + "/metrics_after.json", "UTF-8");
             metricsWriterFinal.println(collector.collectMetrics());
             metricsWriterFinal.flush();
             metricsWriterFinal.close();
