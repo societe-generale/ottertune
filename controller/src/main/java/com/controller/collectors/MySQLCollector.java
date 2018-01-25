@@ -4,6 +4,7 @@ import com.controller.util.JSONUtil;
 import com.controller.util.json.JSONException;
 import com.controller.util.json.JSONObject;
 import com.controller.util.json.JSONStringer;
+import org.apache.log4j.Logger;
 
 import java.sql.*;
 
@@ -11,7 +12,7 @@ import java.sql.*;
  *
  */
 public class MySQLCollector extends DBCollector {
-//    private static final Logger LOG = Logger.getLogger(MySQLCollector.class);
+    private static final Logger LOG = Logger.getLogger(MySQLCollector.class);
 
     private static final String VERSION_SQL = "SELECT @@GLOBAL.version;";
 
@@ -22,7 +23,6 @@ public class MySQLCollector extends DBCollector {
     public MySQLCollector(String oriDBUrl, String username, String password) {
         try {
             Connection conn = DriverManager.getConnection(oriDBUrl, username, password);
-//            Catalog.setSeparator(conn);
             Statement s = conn.createStatement();
 
             // Collect DBMS version
@@ -43,7 +43,7 @@ public class MySQLCollector extends DBCollector {
                 dbMetrics.put(out.getString(1).toLowerCase(), out.getString(2));
             }
         } catch (SQLException e) {
-//            LOG.error("Error while collecting DB parameters: " + e.getMessage());
+            LOG.error("Error while collecting DB parameters: " + e.getMessage());
             e.printStackTrace();
         }
     }

@@ -5,6 +5,8 @@ import com.controller.collectors.MySQLCollector;
 import com.controller.collectors.PostgresCollector;
 import com.controller.util.JSONUtil;
 import org.apache.commons.cli.*;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
 import org.json.simple.JSONObject;
 
 import java.io.File;
@@ -19,9 +21,12 @@ import java.util.HashMap;
  * @author Shuli
  */
 public class Main {
+    final static Logger logger = Logger.getLogger(Main.class);
+
     private static final int DEFAULT_TIME = 300;  //default observation time: 300 s
     private static final int TO_MILLISECONDS = 1000;
     public static void main(String[] args) {
+        PropertyConfigurator.configure("log4j.properties");
         int time = DEFAULT_TIME; // set time to default
         String outputDirName = "output"; // default output directory
         CommandLineParser parser = new PosixParser();
@@ -35,19 +40,23 @@ public class Main {
             // parse time
             if(argsLine.hasOption("t")) {
                 time = Integer.parseInt(argsLine.getOptionValue("t"));
+                logger.info("Experiment time is set to: " + time);
             }
             if(argsLine.hasOption("o")) {
                 outputDirName = argsLine.getOptionValue("o");
+                logger.info("Experiment output directory is set to: " + outputDirName);
             }
 
             // parse config file
             if(!argsLine.hasOption("c")) {
+                logger.error("Must have a valid path to a config file. See the `config` directory.");
                 throw new MalformedParametersException("lack config file");
             }
             else {
                 configFilePath = argsLine.getOptionValue("c");
             }
         } catch (ParseException e) {
+            logger.error("Unable to Parse command line argument");
             e.printStackTrace();
         }
 
@@ -66,6 +75,7 @@ public class Main {
                 collector = new MySQLCollector(controllerConfiguration.getDatabaseUrl(), controllerConfiguration.getUsername(), controllerConfiguration.getPassword());
                 break;
             default:
+                logger.error("Invalid database type");
                 throw new MalformedParametersException("invalid database type");
         }
         String outputDir = input.get("database_type");
@@ -81,6 +91,7 @@ public class Main {
             summary.put("database_type", dbtype);
             summary.put("database_version", collector.collectVersion());
 
+            logger.info("First collection of metrics before experiment");
             // first collection (before queries)
             PrintWriter metricsWriter = new PrintWriter(outputDirName + "/" + outputDir+ "/metrics_before.json", "UTF-8");
             metricsWriter.println(collector.collectMetrics());
@@ -93,9 +104,11 @@ public class Main {
 
             // record start time
             summary.put("start_time", System.currentTimeMillis());
+            logger.info("Start the experiment ...");
 
             // go to sleep
             Thread.sleep(time * TO_MILLISECONDS);
+            logger.info("Experiment ends");
 
             // record end time
             summary.put("end_time", System.currentTimeMillis());
@@ -108,12 +121,14 @@ public class Main {
             summaryout.println(JSONUtil.format(summary.toString()));
             summaryout.flush();
 
+            logger.info("Second collection of metrics after experiment");
             // second collection (after queries)
             PrintWriter metricsWriterFinal = new PrintWriter(outputDirName + "/" + outputDir + "/metrics_after.json", "UTF-8");
             metricsWriterFinal.println(collector.collectMetrics());
             metricsWriterFinal.flush();
             metricsWriterFinal.close();
         } catch (FileNotFoundException | UnsupportedEncodingException | InterruptedException e) {
+            logger.error("Failed to produce output files");
             e.printStackTrace();
         }
 
