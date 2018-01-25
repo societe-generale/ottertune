@@ -15,6 +15,7 @@ import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.MalformedParametersException;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Controller main.
@@ -132,12 +133,12 @@ public class Main {
             e.printStackTrace();
         }
 
-//        Map<String, String> outfiles = new HashMap<>();
-//        outfiles.put("knobs", "output/" + outputDir + "/knobs.json");
-//        outfiles.put("metrics_before", "output/"+ outputDir + "/metrics_before.json");
-//        outfiles.put("metrics_after", "output/"+outputDir+"metrics_after.json");
-//        outfiles.put("summary", "output/"+outputDir+"summary.json");
-//        ResultUploader.upload(uploadURL, uploadCode, outfiles);
+        Map<String, String> outfiles = new HashMap<>();
+        outfiles.put("knobs", outputDirName + "/" + outputDir + "/knobs.json");
+        outfiles.put("metrics_before", outputDirName + "/"+ outputDir + "/metrics_before.json");
+        outfiles.put("metrics_after", outputDirName + "/"+outputDir+"metrics_after.json");
+        outfiles.put("summary", outputDirName + "/"+outputDir+"summary.json");
+        ResultUploader.upload(controllerConfiguration.getUploadURL(), controllerConfiguration.getUploadCode(), outfiles);
 
     }
 }
