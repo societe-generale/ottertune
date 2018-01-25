@@ -26,7 +26,7 @@ public class ConfigFileParserTest {
         mockObj.put("password", "12345");
         mockObj.put("database_url", "jdbc:mysql://localhost:3306/mysqldb");
         try {
-            PrintWriter mockJSON = new PrintWriter("src/test/java/com/controller/mock_config/mock_config1.json","UTF-8");
+            PrintWriter mockJSON = new PrintWriter("./mock_config1.json","UTF-8");
             mockJSON.println(mockObj.toString());
             mockJSON.flush();
         } catch (FileNotFoundException e) {
@@ -39,7 +39,7 @@ public class ConfigFileParserTest {
 
     @Test
     public void testMockJSON() {
-        HashMap<String, String> mockRes = ConfigFileParser.getInputFromConfigFile("src/test/java/com/controller/mock_config/mock_config1.json");
+        HashMap<String, String> mockRes = ConfigFileParser.getInputFromConfigFile("./mock_config1.json");
         assertTrue(mockRes.get("database_type").equals("abc"));
         assertTrue(mockRes.get("username").equals("root"));
         assertTrue(mockRes.get("password").equals("12345"));
@@ -48,7 +48,7 @@ public class ConfigFileParserTest {
 
     @After
     public void deleteMockJSON() {
-        File file = new File("src/test/java/com/controller/mock_config/mock_config1.json");
+        File file = new File("./mock_config1.json");
         file.delete();
     }
 }
