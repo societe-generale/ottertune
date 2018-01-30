@@ -22,3 +22,6 @@ out/
 
 # lib
 lib/
+
+# log file
+.log
