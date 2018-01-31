@@ -4,7 +4,7 @@ from celery.task import task, Task
 from djcelery.models import TaskMeta
 from sklearn.preprocessing import StandardScaler
 
-from analysis.gp_tf import GPR, GPR_GD
+from analysis.gp_tf import GPR, GPRGD
 from analysis.preprocessing import bin_by_decile, Bin
 from website.models import (PipelineData, PipelineRun,
                             Result, Workload)
@@ -216,14 +216,14 @@ def configuration_recommendation(target_data):
         X_samples[:, i] = np.random.rand(
             num_samples) * (col_max - col_min) + col_min
 
-    model = GPR_GD()
+    model = GPRGD()
     model.fit(X_scaled, y_scaled, ridge)
     res = model.predict(X_samples)
 
     # FIXME: whether we select the min/max for the best config depends
     # on the target objective
-    best_config_idx = np.argmin(res.minL.ravel())
-    best_config = res.minL_conf[best_config_idx, :]
+    best_config_idx = np.argmin(res.minl.ravel())
+    best_config = res.minl_conf[best_config_idx, :]
     best_config = X_scaler.inverse_transform(best_config)
 
     conf_map = {k: best_config[i] for i,k in enumerate(X_columnlabels)}
