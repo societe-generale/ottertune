@@ -15,7 +15,6 @@ from django.urls import reverse, reverse_lazy
 from django.utils.datetime_safe import datetime
 from django.utils.timezone import now
 from django.views.decorators.csrf import csrf_exempt
-from djcelery.models import TaskMeta
 
 from .forms import NewResultForm, ProjectForm, SessionForm
 from .models import (BackupData, DBMSCatalog, Hardware, KnobCatalog,
@@ -104,11 +103,7 @@ def home_projects_view(request):
     }))
     form_labels['title'] = 'Your Projects'
     projects = Project.objects.filter(user=request.user)
-    show_descriptions = False
-    for proj in projects:
-        if proj.description != None and proj.description != "":
-            show_descriptions = True
-            break
+    show_descriptions = any([proj.description for proj in projects])
     context = {
         "projects": projects,
         "labels": form_labels,
@@ -124,7 +119,7 @@ def create_or_edit_project(request, project_id=''):
         if project_id == '':
             form = ProjectForm(request.POST)
             if not form.is_valid():
-                return HttpResponse(str(form))
+                return render(request, 'edit_project.html', {'form': form})
             project = form.save(commit=False)
             project.user = request.user
             ts = now()
@@ -132,12 +127,11 @@ def create_or_edit_project(request, project_id=''):
             project.last_update = ts
             project.save()
         else:
-            project = Project.objects.get(pk=int(project_id))
-            if project.user != request.user:
-                return Http404()
+            project = get_object_or_404(Project, pk=project_id,
+                                                 user=request.user)
             form = ProjectForm(request.POST, instance=project)
             if not form.is_valid():
-                return HttpResponse(str(form))
+                return render(request, 'edit_project.html', {'form': form})
             project.last_update = now()
             project.save()
         return redirect(reverse('project_sessions', kwargs={'project_id': project.pk}))
@@ -157,10 +151,8 @@ def create_or_edit_project(request, project_id=''):
 
 @login_required(login_url=reverse_lazy('login'))
 def delete_project(request):
-    for pk in request.POST.getlist('projects', []):
-        project = Project.objects.get(pk=pk)
-        if project.user == request.user:
-            project.delete()
+    pids = request.POST.getlist('projects', [])
+    Project.objects.filter(pk__in=pids, user=request.user).delete()
     return redirect(reverse('home_projects'))
 
 
@@ -244,13 +236,14 @@ def session_view(request, project_id, session_id):
 
 @login_required(login_url=reverse_lazy('login'))
 def create_or_edit_session(request, project_id, session_id=''):
-    project = get_object_or_404(Project, pk=project_id)
+    project = get_object_or_404(Project, pk=project_id, user=request.user)
     if request.method == 'POST':
-        if session_id == '':
+        if not session_id:
             # Create a new session from the form contents
             form = SessionForm(request.POST)
             if not form.is_valid():
-                return HttpResponse(str(form))
+                return render(request, 'edit_session.html',
+                              {'project': project, 'form': form})
             session = form.save(commit=False)
             session.user = request.user
             session.project = project
@@ -261,10 +254,11 @@ def create_or_edit_session(request, project_id, session_id=''):
             session.save()
         else:
             # Update an existing session with the form contents
-            session = Session.objects.get(pk=int(session_id))
+            session = Session.objects.get(pk=session_id)
             form = SessionForm(request.POST, instance=session)
             if not form.is_valid():
-                return HttpResponse(str(form))
+                return render(request, 'edit_session.html',
+                              {'project': project, 'form': form, 'session': session})
             if form.cleaned_data['gen_upload_code'] is True:
                 session.upload_code = MediaUtil.upload_code_generator()
             session.last_update = now()
@@ -272,9 +266,7 @@ def create_or_edit_session(request, project_id, session_id=''):
         return redirect(reverse('session', kwargs={'project_id': project_id,
                                                    'session_id': session.pk}))
     else:
-        if project.user != request.user:
-            return Http404()
-        if session_id != '':
+        if session_id:
             # Return a pre-filled form for editing an existing session
             session = Session.objects.get(pk=session_id)
             form = SessionForm(instance=session)
@@ -299,10 +291,8 @@ def create_or_edit_session(request, project_id, session_id=''):
 
 @login_required(login_url=reverse_lazy('login'))
 def delete_session(request, project_id):
-    for session_id in request.POST.getlist('sessions', []):
-        session = Session.objects.get(pk=session_id)
-        if session.user == request.user:
-            session.delete()
+    sids = request.POST.getlist('sessions', [])
+    Session.objects.filter(pk__in=sids, user=request.user).delete()
     return redirect(reverse(
         'project_sessions',
         kwargs={'project_id': project_id}))
@@ -322,12 +312,7 @@ def result_view(request, project_id, session_id, result_id):
 
     status = None
     if target.task_ids is not None:
-        task_ids = target.task_ids.split(',')
-        tasks = []
-        for tid in task_ids:
-            task = TaskMeta.objects.filter(task_id=tid).first()
-            if task is not None:
-                tasks.append(task)
+        tasks = TaskUtil.get_tasks(target.task_ids)
         status, _ = TaskUtil.get_task_status(tasks)
         if status is None:
             status = 'UNAVAILABLE'
@@ -363,8 +348,8 @@ def new_result(request):
         try:
             session = Session.objects.get(upload_code=upload_code)
         except Session.DoesNotExist:
-            log.warning("Wrong upload code: " + upload_code)
-            return HttpResponse("wrong upload_code!")
+            log.warning("Invalid upload code: " + upload_code)
+            return HttpResponse("Invalid upload code: " + upload_code)
 
         return handle_result_files(session, request.FILES)
     log.warning("Request type was not POST")
@@ -380,9 +365,7 @@ def handle_result_files(session, files):
     # Load the contents of the controller's summary file
     summary = JSONUtil.loads(files['summary'])
     dbms_type = DBMSType.type(summary['database_type'])
-#     dbms_version = Parser.parse_version_string(
-#        dbms_type, summary['database_version'])
-    dbms_version = '9.6'  ## FIXME (dva)
+    dbms_version = summary['database_version'] ##TODO parse_version_string 
     workload_name = summary['workload_name']
     observation_time = summary['observation_time']
     start_time = datetime.fromtimestamp(
@@ -608,16 +591,17 @@ def workload_view(request, project_id, session_id, wkld_id):
                                          session=session)
     knob_conf_map = {}
     for conf in knob_confs:
-        results = Result.objects.filter(session=session,
-                                        knob_data=conf,
-                                        workload=workload)
-        if len(results) == 0:
+        latest_result = Result.objects.filter(session=session,
+                                              knob_data=conf,
+                                              workload=workload).\
+                                       order_by('-observation_end_time').\
+                                       first()
+        if not latest_result:
             continue
-        result = results.latest('observation_end_time')
-        knob_conf_map[conf.name] = [conf, result]
+        knob_conf_map[conf.name] = [conf, latest_result]
     knob_conf_map = OrderedDict(sorted(knob_conf_map.items(), key=lambda x: x[1][0].pk))
     default_knob_confs = [c for c, _ in knob_conf_map.values()][:5]
-    print default_knob_confs
+    log.debug("default_knob_confs: %s" % default_knob_confs)
 
     metric_meta = MetricCatalog.objects.get_metric_meta(session.dbms, True)
     default_metrics = MetricCatalog.objects.get_default_metrics(session.target_objective)
@@ -638,12 +622,7 @@ def workload_view(request, project_id, session_id, wkld_id):
 def tuner_status_view(request, project_id, session_id, result_id):
     res = Result.objects.get(pk=result_id)
 
-    task_ids = res.task_ids.split(',')
-    tasks = []
-    for tid in task_ids:
-        task = TaskMeta.objects.filter(task_id=tid).first()
-        if task is not None:
-            tasks.append(task)
+    tasks = TaskUtil.get_tasks(res.task_ids)
 
     overall_status, num_completed = TaskUtil.get_task_status(tasks)
     if overall_status in ['PENDING', 'RECEIVED', 'STARTED']:
@@ -706,14 +685,14 @@ def get_workload_data(request):
                                         'lessisbetter': met_info.improvement,
                                         'metric': met_info.pprint})
 
-        added = {}
+        added = set()
         knob_confs = data['conf'].split(',')
         i = len(knob_confs)
         for r in results:
             metric_data = JSONUtil.loads(r.metric_data.data)
             if r.knob_data.pk in added or str(r.knob_data.pk) not in knob_confs:
                 continue
-            added[r.knob_data.pk] = True
+            added.add(r.knob_data.pk)
             data_val = metric_data[met] * met_info.scale
             data_package['results'][-1]['data'][0].append([
                 i,
@@ -797,20 +776,20 @@ def get_timeline_data(request):
 
     metric_datas = {r.pk: JSONUtil.loads(r.metric_data.data) for r in results}
     result_list = []
-    for x in results:
+    for r in results:
         entry = [
-            x.pk,
-            x.observation_end_time.strftime("%Y-%m-%d %H:%M:%S"),
-            x.knob_data.name,
-            x.metric_data.name,
-            x.workload.name]
+            r.pk,
+            r.observation_end_time.strftime("%Y-%m-%d %H:%M:%S"),
+            r.knob_data.name,
+            r.metric_data.name,
+            r.workload.name]
         for met in metrics:
-            entry.append(metric_datas[x.pk][met] * metric_meta[met].scale)
+            entry.append(metric_datas[r.pk][met] * metric_meta[met].scale)
         entry.extend([
             '',
-            x.knob_data.pk,
-            x.metric_data.pk,
-            x.workload.pk
+            r.knob_data.pk,
+            r.metric_data.pk,
+            r.workload.pk
         ])
         result_list.append(entry)
     data_package['results'] = result_list
