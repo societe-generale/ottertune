@@ -22,7 +22,7 @@ public class DBCollectorTest {
     @Before
     public void setUp() {
         srcPath = PathUtil.getAbsPath("src");
-        outputPath = PathUtil.getAbsPath("output");
+        outputPath = PathUtil.getAbsPath("sample_output");
         schemaFilePath = srcPath + "/main/java/com/controller/json_validation_schema/schema.json";
     }
 
