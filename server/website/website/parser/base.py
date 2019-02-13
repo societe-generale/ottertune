@@ -11,31 +11,28 @@ Created on Dec 12, 2017
 Parser interface.
 '''
 
-import os
 from abc import ABCMeta, abstractmethod, abstractproperty
 from collections import OrderedDict
 
 from website.models import KnobCatalog, MetricCatalog
-from website.settings import CONFIG_DIR
 from website.types import BooleanType, MetricType, VarType
 
 
 # pylint: disable=no-self-use
-class BaseParser(object):
-
-    __metaclass__ = ABCMeta
+class BaseParser(object, metaclass=ABCMeta):
 
     def __init__(self, dbms_id):
         self.dbms_id_ = dbms_id
         knobs = KnobCatalog.objects.filter(dbms__pk=self.dbms_id_)
         self.knob_catalog_ = {k.name: k for k in knobs}
         self.tunable_knob_catalog_ = {k: v for k, v in
-                                      self.knob_catalog_.iteritems() if v.tunable is True}
+                                      list(self.knob_catalog_.items()) if v.tunable is True}
         metrics = MetricCatalog.objects.filter(dbms__pk=self.dbms_id_)
         self.metric_catalog_ = {m.name: m for m in metrics}
         self.numeric_metric_catalog_ = {m: v for m, v in
-                                        self.metric_catalog_.iteritems() if
-                                        v.metric_type == MetricType.COUNTER}
+                                        list(self.metric_catalog_.items()) if
+                                        v.metric_type == MetricType.COUNTER or
+                                        v.metric_type == MetricType.STATISTICS}
         self.valid_true_val = list()
         self.valid_false_val = list()
 
@@ -50,6 +47,20 @@ class BaseParser(object):
     @abstractproperty
     def transactions_counter(self):
         pass
+
+    @abstractproperty
+    def latency_timer(self):
+        pass
+
+    def target_metric(self, target_objective=None):
+        if target_objective == 'throughput_txn_per_sec' or target_objective is None:
+            # throughput
+            return self.transactions_counter
+        elif target_objective == '99th_lat_ms':
+            # 99 percentile latency
+            return self.latency_timer
+        else:
+            raise Exception("Target Objective {} Not Supported".format(target_objective))
 
     @abstractmethod
     def parse_version_string(self, version_string):
@@ -97,7 +108,7 @@ class BaseParser(object):
 
     def convert_dbms_knobs(self, knobs):
         knob_data = {}
-        for name, metadata in self.tunable_knob_catalog_.iteritems():
+        for name, metadata in list(self.tunable_knob_catalog_.items()):
             if metadata.tunable is False:
                 continue
             if name not in knobs:
@@ -147,35 +158,46 @@ class BaseParser(object):
     def _check_knob_bool_val(self, value):
         return value in self.valid_true_val or value in self.valid_false_val
 
-    def convert_dbms_metrics(self, metrics, observation_time):
+    def convert_dbms_metrics(self, metrics, observation_time, target_objective=None):
         #         if len(metrics) != len(self.numeric_metric_catalog_):
         #             raise Exception('The number of metrics should be equal!')
         metric_data = {}
-        for name, metadata in self.numeric_metric_catalog_.iteritems():
+        for name, metadata in list(self.numeric_metric_catalog_.items()):
             value = metrics[name]
             if metadata.metric_type == MetricType.COUNTER:
                 converted = self.convert_integer(value, metadata)
                 metric_data[name] = float(converted) / observation_time
+            elif metadata.metric_type == MetricType.STATISTICS:
+                converted = self.convert_integer(value, metadata)
+                metric_data[name] = float(converted)
             else:
                 raise Exception(
                     'Unknown metric type for {}: {}'.format(name, metadata.metric_type))
-        if self.transactions_counter not in metric_data:
-            raise Exception("Cannot compute throughput (no objective function)")
-        metric_data['throughput_txn_per_sec'] = metric_data[self.transactions_counter]
+
+        if target_objective is not None and self.target_metric(target_objective) not in metric_data:
+            raise Exception("Cannot find objective function")
+
+        if target_objective is not None:
+            metric_data[target_objective] = metric_data[self.target_metric(target_objective)]
+        else:
+            # default
+            metric_data['throughput_txn_per_sec'] = \
+                metric_data[self.target_metric(target_objective)]
+
         return metric_data
 
     @staticmethod
     def extract_valid_variables(variables, catalog, default_value=None):
         valid_variables = {}
         diff_log = []
-        valid_lc_variables = {k.lower(): v for k, v in catalog.iteritems()}
+        valid_lc_variables = {k.lower(): v for k, v in list(catalog.items())}
 
         # First check that the names of all variables are valid (i.e., listed
         # in the official catalog). Invalid variables are logged as 'extras'.
         # Variable names that are valid but differ in capitalization are still
         # added to valid_variables but with the proper capitalization. They
         # are also logged as 'miscapitalized'.
-        for var_name, var_value in variables.iteritems():
+        for var_name, var_value in list(variables.items()):
             lc_var_name = var_name.lower()
             if lc_var_name in valid_lc_variables:
                 valid_name = valid_lc_variables[lc_var_name].name
@@ -189,8 +211,8 @@ class BaseParser(object):
         # variables. Missing variables are added to valid_variables with the given
         # default_value if provided (or the item's actual default value if not) and
         # logged as 'missing'.
-        lc_variables = {k.lower(): v for k, v in variables.iteritems()}
-        for valid_lc_name, metadata in valid_lc_variables.iteritems():
+        lc_variables = {k.lower(): v for k, v in list(variables.items())}
+        for valid_lc_name, metadata in list(valid_lc_variables.items()):
             if valid_lc_name not in lc_variables:
                 diff_log.append(('missing', metadata.name, None, None))
                 valid_variables[metadata.name] = default_value if \
@@ -198,10 +220,9 @@ class BaseParser(object):
         assert len(valid_variables) == len(catalog)
         return valid_variables, diff_log
 
-    def parse_helper(self, scope, view_variables):
-        valid_variables = {}
-        for view_name, variables in view_variables.iteritems():
-            for var_name, var_value in variables.iteritems():
+    def parse_helper(self, scope, valid_variables, view_variables):
+        for view_name, variables in list(view_variables.items()):
+            for var_name, var_value in list(variables.items()):
                 full_name = '{}.{}'.format(view_name, var_name)
                 if full_name not in valid_variables:
                     valid_variables[full_name] = []
@@ -210,17 +231,17 @@ class BaseParser(object):
 
     def parse_dbms_variables(self, variables):
         valid_variables = {}
-        for scope, sub_vars in variables.iteritems():
+        for scope, sub_vars in list(variables.items()):
             if sub_vars is None:
                 continue
             if scope == 'global':
-                valid_variables.update(self.parse_helper(scope, sub_vars))
+                valid_variables.update(self.parse_helper(scope, valid_variables, sub_vars))
             elif scope == 'local':
-                for _, viewnames in sub_vars.iteritems():
-                    for viewname, objnames in viewnames.iteritems():
-                        for _, view_vars in objnames.iteritems():
+                for _, viewnames in list(sub_vars.items()):
+                    for viewname, objnames in list(viewnames.items()):
+                        for _, view_vars in list(objnames.items()):
                             valid_variables.update(self.parse_helper(
-                                scope, {viewname: view_vars}))
+                                scope, valid_variables, {viewname: view_vars}))
             else:
                 raise Exception('Unsupported variable scope: {}'.format(scope))
         return valid_variables
@@ -246,11 +267,12 @@ class BaseParser(object):
             valid_metrics, self.metric_catalog_, default_value='0')
 
         # Combine values
-        for name, values in valid_metrics.iteritems():
+        for name, values in list(valid_metrics.items()):
             metric = self.metric_catalog_[name]
             if metric.metric_type == MetricType.INFO or len(values) == 1:
                 valid_metrics[name] = values[0]
-            elif metric.metric_type == MetricType.COUNTER:
+            elif metric.metric_type == MetricType.COUNTER or \
+                    metric.metric_type == MetricType.STATISTICS:
                 values = [int(v) for v in values if v is not None]
                 if len(values) == 0:
                     valid_metrics[name] = 0
@@ -263,7 +285,7 @@ class BaseParser(object):
 
     def calculate_change_in_metrics(self, metrics_start, metrics_end):
         adjusted_metrics = {}
-        for met_name, start_val in metrics_start.iteritems():
+        for met_name, start_val in list(metrics_start.items()):
             end_val = metrics_end[met_name]
             met_info = self.metric_catalog_[met_name]
             if met_info.vartype == VarType.INTEGER or \
@@ -273,8 +295,11 @@ class BaseParser(object):
                     self.convert_real
                 start_val = conversion_fn(start_val, met_info)
                 end_val = conversion_fn(end_val, met_info)
-                adj_val = end_val - start_val
-                assert adj_val >= 0
+                if met_info.metric_type == MetricType.COUNTER:
+                    adj_val = end_val - start_val
+                else:  # MetricType.STATISTICS or MetricType.INFO
+                    adj_val = end_val
+                assert adj_val >= 0, '{} wrong metric type '.format(met_name)
                 adjusted_metrics[met_name] = adj_val
             else:
                 # This metric is either a bool, enum, string, or timestamp
@@ -282,43 +307,20 @@ class BaseParser(object):
                 adjusted_metrics[met_name] = end_val
         return adjusted_metrics
 
-    def create_knob_configuration(self, tuning_knobs, custom_knobs):
-        config_knobs = self.base_configuration_settings
-        config_knobs.update(custom_knobs)
-
-        categories = {}
-        for knob_name, knob_value in config_knobs.iteritems():
-            category = self.knob_catalog_[knob_name].category
-            if category not in categories:
-                categories[category] = []
-            categories[category].append((knob_name, knob_value))
-        categories = OrderedDict(sorted(categories.iteritems()))
-
-        config_path = os.path.join(CONFIG_DIR, self.knob_configuration_filename)
-        with open(config_path, 'r') as f:
-            config = f.read()
-
-        header_fmt = ('#' + ('-' * 78) + '\n# {cat1}\n#' +
-                      ('-' * 78) + '\n\n').format
-        subheader_fmt = '# - {cat2} -\n\n'.format
-        for category, knobs in categories.iteritems():
-            parts = [p.strip() for p in category.upper().split(' / ')]
-            config += header_fmt(cat1=parts[0])
-            if len(parts) == 2:
-                config += subheader_fmt(cat2=parts[1])
-            for knob_name, knob_value in sorted(knobs):
-                config += '{} = \'{}\'\n'.format(knob_name, knob_value)
-            config += '\n'
-        config += header_fmt(cat1='TUNING PARAMETERS')
-        for knob_name, knob_value in sorted(tuning_knobs.iteritems()):
+    def create_knob_configuration(self, tuning_knobs):
+        configuration = {}
+        for knob_name, knob_value in sorted(tuning_knobs.items()):
+            # FIX ME: for now it only shows the global knobs, works for Postgres
             if knob_name.startswith('global.'):
-                knob_name = knob_name[len('global.'):]
-            config += '{} = \'{}\'\n'.format(knob_name, knob_value)
-        return config
+                knob_name_global = knob_name[knob_name.find('.') + 1:]
+                configuration[knob_name_global] = knob_value
+
+        configuration = OrderedDict(sorted(configuration.items()))
+        return configuration
 
     def get_nondefault_knob_settings(self, knobs):
         nondefault_settings = OrderedDict()
-        for knob_name, metadata in self.knob_catalog_.iteritems():
+        for knob_name, metadata in list(self.knob_catalog_.items()):
             if metadata.tunable is True:
                 continue
             if knob_name not in knobs:
@@ -349,7 +351,7 @@ class BaseParser(object):
 
     def format_dbms_knobs(self, knobs):
         formatted_knobs = {}
-        for knob_name, knob_value in knobs.iteritems():
+        for knob_name, knob_value in list(knobs.items()):
             metadata = self.knob_catalog_.get(knob_name, None)
             if (metadata is None):
                 raise Exception('Unknown knob {}'.format(knob_name))
@@ -376,11 +378,11 @@ class BaseParser(object):
         return formatted_knobs
 
     def filter_numeric_metrics(self, metrics):
-        return OrderedDict([(k, v) for k, v in metrics.iteritems() if
+        return OrderedDict([(k, v) for k, v in list(metrics.items()) if
                             k in self.numeric_metric_catalog_])
 
     def filter_tunable_knobs(self, knobs):
-        return OrderedDict([(k, v) for k, v in knobs.iteritems() if
+        return OrderedDict([(k, v) for k, v in list(knobs.items()) if
                             k in self.tunable_knob_catalog_])
 
 # pylint: enable=no-self-use

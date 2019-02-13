@@ -69,6 +69,10 @@ class PostgresParser(BaseParser):
     def transactions_counter(self):
         return 'pg_stat_database.xact_commit'
 
+    @property
+    def latency_timer(self):
+        return 'pg_stat_database.xact_commit'
+
     def convert_integer(self, int_value, metadata):
         converted = None
         try:
@@ -90,6 +94,7 @@ class PostgresParser(BaseParser):
         return converted
 
     def format_integer(self, int_value, metadata):
+        int_value = int(round(int_value))
         if metadata.unit != KnobUnitType.OTHER and int_value > 0:
             if metadata.unit == KnobUnitType.BYTES:
                 int_value = ConversionUtil.get_human_readable(
@@ -113,7 +118,15 @@ class PostgresParser(BaseParser):
 
 class Postgres96Parser(PostgresParser):
 
-    def __init__(self):
+    def __init__(self, version):
         dbms = DBMSCatalog.objects.get(
-            type=DBMSType.POSTGRES, version='9.6')
+            type=DBMSType.POSTGRES, version=version)
         super(Postgres96Parser, self).__init__(dbms.pk)
+
+
+class PostgresOldParser(PostgresParser):
+
+    def __init__(self, version):
+        dbms = DBMSCatalog.objects.get(
+            type=DBMSType.POSTGRES, version=version)
+        super(PostgresOldParser, self).__init__(dbms.pk)

@@ -10,7 +10,7 @@ from django.test import TestCase
 from website.utils import JSONUtil, MediaUtil, DataUtil, ConversionUtil, LabelUtil, TaskUtil
 from website.parser.postgres import PostgresParser
 from website.types import LabelStyleType, VarType
-from website.models import Result
+from website.models import Result, DBMSCatalog
 
 
 class JSONUtilTest(TestCase):
@@ -47,9 +47,9 @@ class JSONUtilTest(TestCase):
               "markup"}}}}}"""
 
         results = JSONUtil.loads(json_str)
-        self.assertEqual(results.keys()[0], "glossary")
-        self.assertTrue("title" in results["glossary"].keys())
-        self.assertTrue("GlossDiv" in results["glossary"].keys())
+        self.assertEqual(list(results.keys())[0], "glossary")
+        self.assertTrue("title" in list(results["glossary"].keys()))
+        self.assertTrue("GlossDiv" in list(results["glossary"].keys()))
         self.assertEqual(results["glossary"]["GlossDiv"]
                          ["GlossList"]["GlossEntry"]["ID"], "SGML")
         self.assertEqual(results["glossary"]["GlossDiv"]
@@ -136,24 +136,24 @@ class TaskUtilTest(TestCase):
 
 class DataUtilTest(TestCase):
 
-    fixtures = ['test_website.json']
+    fixtures = ['test_website.json', 'postgres-96_knobs.json']
 
     def test_aggregate(self):
 
         workload2 = Result.objects.filter(workload=2)
         num_results = Result.objects.filter(workload=2).count()
-        knobs = JSONUtil.loads(workload2[0].knob_data.data).keys()
-        metrics = JSONUtil.loads(workload2[0].metric_data.data).keys()
+        knobs = list(JSONUtil.loads(workload2[0].knob_data.data).keys())
+        metrics = list(JSONUtil.loads(workload2[0].metric_data.data).keys())
         num_knobs = len(knobs)
         num_metrics = len(metrics)
 
         test_result = DataUtil.aggregate_data(workload2)
 
-        self.assertTrue('X_matrix' in test_result.keys())
-        self.assertTrue('y_matrix' in test_result.keys())
-        self.assertTrue('rowlabels' in test_result.keys())
-        self.assertTrue('X_columnlabels' in test_result.keys())
-        self.assertTrue('y_columnlabels' in test_result.keys())
+        self.assertTrue('X_matrix' in list(test_result.keys()))
+        self.assertTrue('y_matrix' in list(test_result.keys()))
+        self.assertTrue('rowlabels' in list(test_result.keys()))
+        self.assertTrue('X_columnlabels' in list(test_result.keys()))
+        self.assertTrue('y_columnlabels' in list(test_result.keys()))
 
         self.assertEqual(test_result['X_columnlabels'], knobs)
         self.assertEqual(test_result['y_columnlabels'], metrics)
@@ -219,6 +219,35 @@ class DataUtilTest(TestCase):
             self.assertTrue(tuple(i) not in rowys)
             self.assertTrue(i in test_y_matrix)
             rowys.add(tuple(i))
+
+    def test_no_featured_categorical(self):
+        featured_knobs = ['global.backend_flush_after',
+                          'global.bgwriter_delay',
+                          'global.wal_writer_delay',
+                          'global.work_mem']
+        postgres96 = DBMSCatalog.objects.get(pk=1)
+        categorical_info = DataUtil.dummy_encoder_helper(featured_knobs,
+                                                         dbms=postgres96)
+        self.assertEqual(len(categorical_info['n_values']), 0)
+        self.assertEqual(len(categorical_info['categorical_features']), 0)
+        self.assertEqual(categorical_info['cat_columnlabels'], [])
+        self.assertEqual(categorical_info['noncat_columnlabels'], featured_knobs)
+
+    def test_featured_categorical(self):
+        featured_knobs = ['global.backend_flush_after',
+                          'global.bgwriter_delay',
+                          'global.wal_writer_delay',
+                          'global.work_mem',
+                          'global.wal_sync_method']  # last knob categorical
+        postgres96 = DBMSCatalog.objects.get(pk=1)
+        categorical_info = DataUtil.dummy_encoder_helper(featured_knobs,
+                                                         dbms=postgres96)
+        self.assertEqual(len(categorical_info['n_values']), 1)
+        self.assertEqual(categorical_info['n_values'][0], 4)
+        self.assertEqual(len(categorical_info['categorical_features']), 1)
+        self.assertEqual(categorical_info['categorical_features'][0], 4)
+        self.assertEqual(categorical_info['cat_columnlabels'], ['global.wal_sync_method'])
+        self.assertEqual(categorical_info['noncat_columnlabels'], featured_knobs[:-1])
 
 
 class ConversionUtilTest(TestCase):

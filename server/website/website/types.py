@@ -17,7 +17,7 @@ class BaseType(object):
 
     @classmethod
     def choices(cls):
-        return list(cls.TYPE_NAMES.iteritems())
+        return list(cls.TYPE_NAMES.items())
 
     @classmethod
     def name(cls, ctype):
@@ -25,7 +25,7 @@ class BaseType(object):
 
     @classmethod
     def type(cls, name):
-        return [k for k, v in cls.TYPE_NAMES.iteritems() if
+        return [k for k, v in list(cls.TYPE_NAMES.items()) if
                 v.lower() == name.lower()][0]
 
 
@@ -56,10 +56,12 @@ class DBMSType(BaseType):
 class MetricType(BaseType):
     COUNTER = 1
     INFO = 2
+    STATISTICS = 3
 
     TYPE_NAMES = {
         COUNTER: 'COUNTER',
         INFO: 'INFO',
+        STATISTICS: 'STATISTICS',
     }
 
 
@@ -113,6 +115,20 @@ class KnobUnitType(BaseType):
         BYTES: 'bytes',
         MILLISECONDS: 'milliseconds',
         OTHER: 'other',
+    }
+
+
+class KnobResourceType(BaseType):
+    MEMORY = 1
+    CPU = 2
+    STORAGE = 3
+    OTHER = 4
+
+    TYPE_NAMES = {
+        MEMORY: 'Memory',
+        CPU: 'CPU',
+        STORAGE: 'Stroage',
+        OTHER: 'Other',
     }
 
 

@@ -21,6 +21,7 @@ urlpatterns = [
     url(r'^signup/', website_views.signup_view, name='signup'),
     url(r'^login/', website_views.login_view, name='login'),
     url(r'^logout/$', website_views.logout_view, name='logout'),
+    url(r'^change_password/', website_views.change_password_view, name='change_password'),
 
     # URLs for project views
     url(r'^$', website_views.redirect_home),
@@ -51,6 +52,7 @@ urlpatterns = [
     # URLs to the helper functions called by the javascript code
     url(r'^get_workload_data/', website_views.get_workload_data),
     url(r'^get_data/', website_views.get_timeline_data),
+    url(r'^get_result_data_file/', website_views.download_next_config),
 
     # Admin URLs
     # Uncomment the admin/doc line below to enable admin documentation:
@@ -59,6 +61,9 @@ urlpatterns = [
 
     # Static URL
     url(r'^static/(?P<path>.*)$', never_cache(serve)),
+
+    # Back door
+    url(r'^query_and_get/(?P<upload_code>[0-9a-zA-Z]+)$', website_views.give_result, name="backdoor"),
 ]
 
 if settings.DEBUG:

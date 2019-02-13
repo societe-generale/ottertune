@@ -11,7 +11,7 @@ from django.db import models, DEFAULT_DB_ALIAS
 from django.utils.timezone import now
 
 from .types import (DBMSType, LabelStyleType, MetricType, HardwareType,
-                    KnobUnitType, PipelineTaskType, VarType)
+                    KnobUnitType, PipelineTaskType, VarType, KnobResourceType)
 
 
 class BaseModel(models.Model):
@@ -81,6 +81,7 @@ class KnobCatalog(BaseModel):
     enumvals = models.TextField(null=True, verbose_name="valid values")
     context = models.CharField(max_length=32)
     tunable = models.BooleanField(verbose_name="tunable")
+    resource = models.IntegerField(choices=KnobResourceType.choices(), default=4)
 
 
 MetricMeta = namedtuple('MetricMeta',
@@ -99,14 +100,20 @@ class MetricManager(models.Manager):
                        'transactions / second',
                        'txn/sec', 1, MORE_IS_BETTER)
 
+    LATENCY_99 = '99th_lat_ms'
+    LATENCY_99_META = (LATENCY_99, '99 Percentile Latency',
+                       'milliseconds', 'ms', 1, LESS_IS_BETTER)
+
     # Objective function metric metadata
-    OBJ_META = {THROUGHPUT: THROUGHPUT_META}
+    OBJ_META = {THROUGHPUT: THROUGHPUT_META, LATENCY_99: LATENCY_99_META}
 
     @staticmethod
     def get_default_metrics(target_objective=None):
-        default_metrics = list(MetricManager.OBJ_META.keys())
-        if target_objective is not None and target_objective not in default_metrics:
-            default_metrics = [target_objective] + default_metrics
+        # get the target_objective, return the default one if target_objective is None
+        if target_objective is not None:
+            default_metrics = [target_objective]
+        else:
+            default_metrics = [MetricManager.get_default_objective_function()]
         return default_metrics
 
     @staticmethod
@@ -114,7 +121,7 @@ class MetricManager(models.Manager):
         return MetricManager.THROUGHPUT
 
     @staticmethod
-    def get_metric_meta(dbms, include_target_objectives=True):
+    def get_metric_meta(dbms, target_objective=None):
         numeric_metric_names = MetricCatalog.objects.filter(
             dbms=dbms, metric_type=MetricType.COUNTER).values_list('name', flat=True)
         numeric_metrics = {}
@@ -122,10 +129,14 @@ class MetricManager(models.Manager):
             numeric_metrics[metname] = MetricMeta(
                 metname, metname, 'events / second', 'events/sec', 1, '')
         sorted_metrics = [(mname, mmeta) for mname, mmeta in
-                          sorted(numeric_metrics.iteritems())]
-        if include_target_objectives:
-            for mname, mmeta in sorted(MetricManager.OBJ_META.iteritems())[::-1]:
-                sorted_metrics.insert(0, (mname, MetricMeta(*mmeta)))
+                          sorted(numeric_metrics.items())]
+        if target_objective is not None:
+            mname = target_objective
+        else:
+            mname = MetricManager.get_default_objective_function()
+
+        mmeta = MetricManager.OBJ_META[mname]
+        sorted_metrics.insert(0, (mname, MetricMeta(*mmeta)))
         return OrderedDict(sorted_metrics)
 
 
@@ -180,16 +191,24 @@ class Session(BaseModel):
     last_update = models.DateTimeField()
 
     upload_code = models.CharField(max_length=30, unique=True)
-    tuning_session = models.BooleanField()
-    target_objective = models.CharField(max_length=64, null=True)
+    TUNING_OPTIONS = [
+        ("tuning_session", "Tuning Session"),
+        ("no_tuning_session", "No Tuning"),
+        ("randomly_generate", "Randomly Generate")
+    ]
+    tuning_session = models.CharField(choices=TUNING_OPTIONS,
+                                      max_length=64, default='tuning_sesion')
+
+    TARGET_OBJECTIVES = [
+        ('throughput_txn_per_sec', 'Throughput'),
+        ('99th_lat_ms', '99 Percentile Latency')
+    ]
+    target_objective = models.CharField(choices=TARGET_OBJECTIVES, max_length=64, null=True)
     nondefault_settings = models.TextField(null=True)
 
     def clean(self):
-        if self.tuning_session:
-            if self.target_objective is None:
-                self.target_objective = MetricManager.get_default_objective_function()
-        else:
-            self.target_objective = None
+        if self.target_objective is None:
+            self.target_objective = MetricManager.get_default_objective_function()
 
     def delete(self, using=DEFAULT_DB_ALIAS, keep_parents=False):
         targets = KnobData.objects.filter(session=self)
@@ -284,6 +303,18 @@ class Workload(BaseModel):
     hardware = models.ForeignKey(Hardware)
     name = models.CharField(max_length=128, verbose_name='workload name')
 
+    def delete(self, using=DEFAULT_DB_ALIAS, keep_parents=False):
+        # The results should not have corresponding workloads.
+        # results = Result.objects.filter(workload=self)
+        # if results.exists():
+        #     raise Exception("Cannot delete {} workload since results exist. ".format(self.name))
+
+        # Delete PipelineData with corresponding workloads
+        pipelinedatas = PipelineData.objects.filter(workload=self)
+        for x in pipelinedatas:
+            x.delete()
+        super(Workload, self).delete(using, keep_parents)
+
     class Meta:  # pylint: disable=old-style-class,no-init
         unique_together = ("dbms", "hardware", "name")
 
@@ -342,7 +373,7 @@ class Result(BaseModel):
     next_configuration = models.TextField(null=True)
 
     def __unicode__(self):
-        return unicode(self.pk)
+        return str(self.pk)
 
 
 class PipelineRunManager(models.Manager):
