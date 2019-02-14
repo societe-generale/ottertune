@@ -11,7 +11,7 @@ from django.db import models, DEFAULT_DB_ALIAS
 from django.utils.timezone import now
 
 from .types import (DBMSType, LabelStyleType, MetricType, HardwareType,
-                    KnobUnitType, PipelineTaskType, VarType, KnobResourceType)
+                    KnobUnitType, PipelineTaskType, VarType, KnobResourceType, WorkloadStatusType)
 
 
 class BaseModel(models.Model):
@@ -290,7 +290,8 @@ class WorkloadManager(models.Manager):
         except Workload.DoesNotExist:
             return self.create(dbms=dbms,
                                hardware=hardware,
-                               name=name)
+                               name=name,
+                               status=1)
 
 
 class Workload(BaseModel):
@@ -302,6 +303,7 @@ class Workload(BaseModel):
     dbms = models.ForeignKey(DBMSCatalog)
     hardware = models.ForeignKey(Hardware)
     name = models.CharField(max_length=128, verbose_name='workload name')
+    status = models.IntegerField(choices=WorkloadStatusType.choices(), default=1, editable=False)
 
     def delete(self, using=DEFAULT_DB_ALIAS, keep_parents=False):
         # The results should not have corresponding workloads.
