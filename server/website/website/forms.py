@@ -16,6 +16,7 @@ from .models import Session, Project
 
 class NewResultForm(forms.Form):
     upload_code = forms.CharField(max_length=30)
+    tuning = forms.BooleanField(required = False, initial = True)
     metrics_before = forms.FileField()
     metrics_after = forms.FileField()
     knobs = forms.FileField()

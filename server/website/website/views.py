@@ -372,18 +372,19 @@ def new_result(request):
             LOG.warning("New result form is not valid: %s", str(form.errors))
             return HttpResponse("New result form is not valid: " + str(form.errors))
         upload_code = form.cleaned_data['upload_code']
+        tuning = form.cleaned_data['tuning']
         try:
             session = Session.objects.get(upload_code=upload_code)
         except Session.DoesNotExist:
             LOG.warning("Invalid upload code: %s", upload_code)
             return HttpResponse("Invalid upload code: " + upload_code)
 
-        return handle_result_files(session, request.FILES)
+        return handle_result_files(session, request.FILES, tuning)
     LOG.warning("Request type was not POST")
     return HttpResponse("Request type was not POST")
 
 
-def handle_result_files(session, files):
+def handle_result_files(session, files, tuning):
     from celery import chain
     # Combine into contiguous files
     files = {k: b''.join(v.chunks()).decode() for k, v in list(files.items())}
@@ -475,18 +476,18 @@ def handle_result_files(session, files):
     session.project.save()
     session.save()
 
-    if session.tuning_session == 'no_tuning_session':
+    if session.tuning_session is True and tuning is True:
+        result_id = result.pk
+        response = chain(aggregate_target_results.s(result.pk),
+                         map_workload.s(),
+                         configuration_recommendation.s()).apply_async()
+        taskmeta_ids = [response.parent.parent.id, response.parent.id, response.id]
+        result.task_ids = ','.join(taskmeta_ids)
+        result.save()
+        return HttpResponse("Result stored successfully! Running tuner...(status={})  Result ID:{} "
+                            .format(response.status, result_id))
+    else:
         return HttpResponse("Result stored successfully!")
-
-    result_id = result.pk
-    response = chain(aggregate_target_results.s(result.pk),
-                     map_workload.s(),
-                     configuration_recommendation.s()).apply_async()
-    taskmeta_ids = [response.parent.parent.id, response.parent.id, response.id]
-    result.task_ids = ','.join(taskmeta_ids)
-    result.save()
-    return HttpResponse("Result stored successfully! Running tuner...(status={})  Result ID:{} "
-                        .format(response.status, result_id))
 
 
 @login_required(login_url=reverse_lazy('login'))

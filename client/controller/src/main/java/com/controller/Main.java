@@ -76,6 +76,7 @@ public class Main {
     Options options = new Options();
     options.addOption("c", "config", true, "[required] Controller configuration file");
     options.addOption("t", "time", true, "The observation time in seconds, default is 300s");
+    options.addOption("n", "no-tuning", false, "Specify that you don't want to run Ottertune's recommendation on those metrics");
     options.addOption(
         "d", "directory", true, "Base directory for the result files, default is 'output'");
     options.addOption("h", "help", true, "Print this help");
@@ -104,6 +105,12 @@ public class Main {
     if (argsLine.hasOption("t")) {
       time = Integer.parseInt(argsLine.getOptionValue("t"));
     }
+
+    boolean tuning = true;
+    if (argsLine.hasOption("n")) {
+      tuning = false;
+    }
+
     LOG.info("Experiment time is set to: " + time);
 
     String outputDirectory = DEFAULT_DIRECTORY;
@@ -174,7 +181,6 @@ public class Main {
           Thread.sleep(1);
         }
       }
-
 
       // first collection (before queries)
       LOG.info("First collection of metrics before experiment");
@@ -268,7 +274,7 @@ public class Main {
       outfiles.put("summary", FileUtil.joinPath(outputDirectory, "summary.json"));
       try {
         ResultUploader.upload(
-                metric_config.getUploadURL(), metric_config.getUploadCode(), outfiles);
+                metric_config.getUploadURL(), metric_config.getUploadCode(), tuning, outfiles);
       } catch (IOException ioe) {
         LOG.warn("Failed to upload results from the controller");
       }

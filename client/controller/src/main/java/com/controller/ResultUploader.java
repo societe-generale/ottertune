@@ -26,7 +26,7 @@ import org.apache.http.util.EntityUtils;
  * @author Shuli
  */
 public class ResultUploader {
-  public static void upload(String uploadURL, String uploadCode,
+  public static void upload(String uploadURL, String uploadCode, boolean tuning,
                             Map<String, String> files) throws IOException {
 
     try {
@@ -42,6 +42,7 @@ public class ResultUploader {
       HttpPost httppost = new HttpPost(uploadURL);
       MultipartEntityBuilder mb =
               MultipartEntityBuilder.create().addTextBody("upload_code", uploadCode);
+      mb.addTextBody("tuning", Boolean.toString(tuning));
       for (int i = 0; i < filesToSendNames.size(); i++) {
         mb.addPart(filesToSendNames.get(i), new FileBody(filesToSend.get(i)));
       }

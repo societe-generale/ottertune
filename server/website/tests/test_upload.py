@@ -40,13 +40,14 @@ class UploadResultsTests(TestCase):
     @staticmethod
     def close_files(files):
         for name, fp in list(files.items()):
-            if name != 'upload_code':
+            if name != 'upload_code' and name != 'tuning':
                 fp.close()
 
-    def upload_to_session_ok(self, session_id, upload_code):
+    def upload_to_session_ok(self, session_id, upload_code, tuning=True):
         num_initial_results = Result.objects.filter(session__id=session_id).count()
         form_addr = reverse('new_result')
         post_data = self.open_files(self.upload_files)
+        post_data['tuning'] = tuning
         post_data['upload_code'] = upload_code
         response = self.client.post(form_addr, post_data)
         self.close_files(post_data)
@@ -54,18 +55,19 @@ class UploadResultsTests(TestCase):
         num_final_results = Result.objects.filter(session__id=session_id).count()
         self.assertEqual(num_final_results - num_initial_results, 1)
 
-    def upload_to_session_fail_invalidation(self, session_id, upload_code):
+    def upload_to_session_fail_invalidation(self, session_id, upload_code, tuning=True):
         form_addr = reverse('new_result')
-        post_data = {'upload_code': upload_code}
+        post_data = {'upload_code': upload_code, 'tuning': tuning}
         response = self.client.post(form_addr, post_data)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "New result form is not valid:")
         self.assertContains(response, "This field is required", 4)
 
-    def upload_to_session_invalid_upload_code(self, session_id):
+    def upload_to_session_invalid_upload_code(self, session_id, tuning=True):
         form_addr = reverse('new_result')
         post_data = self.open_files(self.upload_files)
         post_data['upload_code'] = "invalid_upload_code"
+        post_data['tuning'] = tuning
         response = self.client.post(form_addr, post_data)
         self.close_files(post_data)
         self.assertEqual(response.status_code, 200)
