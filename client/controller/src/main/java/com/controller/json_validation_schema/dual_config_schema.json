@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "summary of collector output",
+  "description": "config files: user input",
+
+  "definitions": {
+      "config": {
+          "type": "object",
+          "properties": {
+            "database_type": {
+              "type" : "string"
+            },
+            "database_url": {
+              "type" : "string"
+            },
+            "username" :{
+              "type" : "string"
+            },
+            "password": {
+              "type" : "string"
+            }
+          },
+          "required": [
+            "database_type",
+            "database_url",
+            "username",
+            "password"
+         ]
+      }
+  },
+
+  "type": "object",
+
+  "properties": {
+    "metric" : { 
+      "$ref": "#/definitions/config" 
+    },
+    "knob" : { 
+      "$ref": "#/definitions/config" 
+    },
+    "upload_code": {
+      "type" : "string"
+    },
+    "upload_url": {
+      "type" : "string"
+    },
+    "workload_name": {
+      "type" : "string"
+    }
+  },
+
+  "required": [
+    "metric", 
+    "knob", 
+    "upload_code", 
+    "upload_url",
+    "workload_name"
+  ]
+}

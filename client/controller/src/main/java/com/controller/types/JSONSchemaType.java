@@ -19,6 +19,7 @@ public enum JSONSchemaType {
   /** Parameters: (1) schema filename */
   OUTPUT("schema.json"),
   CONFIG("config_schema.json"),
+  DUAL_CONFIG("dual_config_schema.json"),
   SUMMARY("summary_schema.json");
 
   // Path to JSON schema directory
