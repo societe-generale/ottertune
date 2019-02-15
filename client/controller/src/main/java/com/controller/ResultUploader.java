@@ -38,8 +38,6 @@ public class ResultUploader {
         File f = new File(path);
         filesToSend.add(f);
       }
-      CloseableHttpClient httpclient = HttpClients.createDefault();
-      HttpPost httppost = new HttpPost(uploadURL);
       MultipartEntityBuilder mb =
               MultipartEntityBuilder.create().addTextBody("upload_code", uploadCode);
       mb.addTextBody("tuning", Boolean.toString(tuning));
@@ -48,6 +46,8 @@ public class ResultUploader {
       }
 
       HttpEntity reqEntity = mb.build();
+      CloseableHttpClient httpclient = HttpClients.createDefault();
+      HttpPost httppost = new HttpPost(uploadURL);
       httppost.setEntity(reqEntity);
       CloseableHttpResponse response = httpclient.execute(httppost);
       try {

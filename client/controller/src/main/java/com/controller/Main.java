@@ -76,7 +76,8 @@ public class Main {
     Options options = new Options();
     options.addOption("c", "config", true, "[required] Controller configuration file");
     options.addOption("t", "time", true, "The observation time in seconds, default is 300s");
-    options.addOption("n", "no-tuning", false, "Specify that you don't want to run Ottertune's recommendation on those metrics");
+    options.addOption("n", "no-tuning", false,
+        "Specify that you don't want to run Ottertune's recommendation on those metrics");
     options.addOption(
         "d", "directory", true, "Base directory for the result files, default is 'output'");
     options.addOption("h", "help", true, "Print this help");
@@ -124,34 +125,33 @@ public class Main {
     String configPath = argsLine.getOptionValue("c");
     File configFile = new File(configPath);
 
-    ControllerConfiguration metric_config = null;
-    ControllerConfiguration knob_config = null;
+    ControllerConfiguration metricConfig = null;
+    ControllerConfiguration knobConfig = null;
     // Check Dual config format
     if (JSONSchemaType.isValidJson(JSONSchemaType.DUAL_CONFIG, configFile)) {
-        LOG.info("Dual configuration detected");
-        try{
-            JSONObject input = new JSONObject(FileUtil.readFile(configFile));
-            metric_config = getConfig(input, "metric");
-            knob_config = getConfig(input, "knob");
-        } catch(JSONException e){
-            e.printStackTrace();
-        }
-        metric_collector = getCollector(metric_config);
-        knob_collector = getCollector(knob_config);
-    }
+      LOG.info("Dual configuration detected");
+      try {
+        JSONObject input = new JSONObject(FileUtil.readFile(configFile));
+        metricConfig = getConfig(input, "metric");
+        knobConfig = getConfig(input, "knob");
+      } catch (JSONException e) {
+        e.printStackTrace();
+      }
+      metric_collector = getCollector(metricConfig);
+      knob_collector = getCollector(knobConfig);
+
     // Check config format
-    else if (JSONSchemaType.isValidJson(JSONSchemaType.CONFIG, configFile)) {
-        LOG.info("Single configuration detected");
-        try{
-            JSONObject input = new JSONObject(FileUtil.readFile(configFile));
-            metric_config = getConfig(input, null);
-        } catch(JSONException e){
-            e.printStackTrace();
-        }
-        metric_collector = getCollector(metric_config);
-        knob_collector = metric_collector;
-    }
-    else{
+    } else if (JSONSchemaType.isValidJson(JSONSchemaType.CONFIG, configFile)) {
+      LOG.info("Single configuration detected");
+      try {
+        JSONObject input = new JSONObject(FileUtil.readFile(configFile));
+        metricConfig = getConfig(input, null);
+      } catch (JSONException e) {
+        e.printStackTrace();
+      }
+      metric_collector = getCollector(metricConfig);
+      knob_collector = metric_collector;
+    } else {
       LOG.error("Invalid configuration JSON format");
       return;
     }
@@ -225,11 +225,6 @@ public class Main {
       long observationTime = time >= 0 ? time : (endTime - startTime) / TO_MILLISECONDS;
       LOG.info("Done running the experiment");
 
-      // second collection (after workload execution)
-      LOG.info("Second collection of metrics after experiment");
-      metric_collector = getCollector(metric_config);
-      String metricsAfter = metric_collector.collectMetrics();
-
       // summary json obj
       JSONObject summary = null;
       try {
@@ -237,9 +232,9 @@ public class Main {
         summary.put("start_time", startTime);
         summary.put("end_time", endTime);
         summary.put("observation_time", observationTime);
-        summary.put("database_type", metric_config.getDBName());
+        summary.put("database_type", metricConfig.getDBName());
         summary.put("database_version", metric_collector.collectVersion());
-        summary.put("workload_name", metric_config.getWorkloadName());
+        summary.put("workload_name", metricConfig.getWorkloadName());
       } catch (JSONException e) {
         e.printStackTrace();
       }
@@ -254,6 +249,11 @@ public class Main {
       summaryout.println(JSONUtil.format(summary.toString()));
       summaryout.close();
 
+      // second collection (after workload execution)
+      LOG.info("Second collection of metrics after experiment");
+      metric_collector = getCollector(metricConfig);
+      String metricsAfter = metric_collector.collectMetrics();
+
       if (!JSONSchemaType.isValidJson(JSONSchemaType.OUTPUT, metricsAfter)) {
         LOG.error("Invalid output JSON format (metrics_after)");
         return;
@@ -266,7 +266,7 @@ public class Main {
       LOG.error("Failed to produce output files");
       e.printStackTrace();
     }
-    if (metric_config.getUploadURL() != null && !metric_config.getUploadURL().equals("")) {
+    if (metricConfig.getUploadURL() != null && !metricConfig.getUploadURL().equals("")) {
       Map<String, String> outfiles = new HashMap<>();
       outfiles.put("knobs", FileUtil.joinPath(outputDirectory, "knobs.json"));
       outfiles.put("metrics_before", FileUtil.joinPath(outputDirectory, "metrics_before.json"));
@@ -274,7 +274,7 @@ public class Main {
       outfiles.put("summary", FileUtil.joinPath(outputDirectory, "summary.json"));
       try {
         ResultUploader.upload(
-                metric_config.getUploadURL(), metric_config.getUploadCode(), tuning, outfiles);
+                metricConfig.getUploadURL(), metricConfig.getUploadCode(), tuning, outfiles);
       } catch (IOException ioe) {
         LOG.warn("Failed to upload results from the controller");
       }
@@ -288,20 +288,22 @@ public class Main {
     formatter.printHelp("controller", options);
   }
 
-  private static ControllerConfiguration getConfig(JSONObject input, String key) throws JSONException {
-      String upload_code = input.getString("upload_code");
-      String upload_url = input.getString("upload_url");
-      String workload_name = input.getString("workload_name");
+  private static ControllerConfiguration getConfig(JSONObject input,
+      String key) throws JSONException {
+    String uploadCode = input.getString("upload_code");
+    String uploadUrl = input.getString("upload_url");
+    String workloadName = input.getString("workload_name");
 
-      if (key != null && !key.equals(""))
-        input = input.getJSONObject(key);
+    if (key != null && !key.equals("")) {
+      input = input.getJSONObject(key);
+    }
 
-      ControllerConfiguration config = new ControllerConfiguration(
-          input.getString("database_type"), input.getString("username"),
-          input.getString("password"), input.getString("database_url"),
-          upload_code, upload_url, workload_name
-      );
-      return config;
+    ControllerConfiguration config = new ControllerConfiguration(
+        input.getString("database_type"), input.getString("username"),
+        input.getString("password"), input.getString("database_url"),
+        uploadCode, uploadUrl, workloadName
+        );
+    return config;
   }
 
   private static DBCollector getCollector(ControllerConfiguration config) {
